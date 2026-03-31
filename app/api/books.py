@@ -14,6 +14,8 @@ from app.models.schemas import (
     GenerateBookRequest,
     GenerateBookResponse,
     MessageResponse,
+    SentenceUpdate,
+    SentenceResponse,
 )
 from app.services import get_book_service
 from app.services.book_service import BookService
@@ -93,6 +95,19 @@ async def get_book_page(
     """Get a specific page of a book with sentences."""
     page = book_service.get_book_page(book_id, current_user["id"], page_number)
     return BookPageDetailResponse(**page)
+
+
+@router.put("/{book_id}/sentences/{sentence_id}", response_model=SentenceResponse)
+async def update_sentence(
+    book_id: str,
+    sentence_id: str,
+    sentence_data: SentenceUpdate,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    book_service: Annotated[BookService, Depends(get_book_service)],
+):
+    """Update a sentence in a book."""
+    sentence = book_service.update_sentence(book_id, current_user["id"], sentence_id, sentence_data)
+    return SentenceResponse(**sentence)
 
 
 @router.post("/generate", response_model=GenerateBookResponse)

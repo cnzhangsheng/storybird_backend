@@ -13,6 +13,7 @@ from app.models.schemas import (
     BookPageDetailResponse,
     GenerateBookRequest,
     GenerateBookResponse,
+    SentenceUpdate,
 )
 from app.models.db_models import Book, BookPage, Sentence
 
@@ -311,3 +312,55 @@ class BookService:
             status="generating",
             message="书籍生成已开始",
         )
+
+    def update_sentence(self, book_id: str, user_id: str, sentence_id: str, sentence_data: SentenceUpdate) -> dict:
+        """更新句子。
+
+        Args:
+            book_id: 书籍 ID
+            user_id: 用户 ID
+            sentence_id: 句子 ID
+            sentence_data: 更新数据
+
+        Returns:
+            更新后的句子数据
+
+        Raises:
+            NotFoundException: 书籍或句子不存在
+        """
+        # 校验书籍权限
+        book = self.db.query(Book).filter(Book.id == book_id, Book.user_id == user_id).first()
+
+        if not book:
+            raise NotFoundException(message="书籍未找到")
+
+        # 查找句子
+        sentence = self.db.query(Sentence).filter(Sentence.id == sentence_id).first()
+
+        if not sentence:
+            raise NotFoundException(message="句子未找到")
+
+        # 校验句子所属页面是否属于该书籍
+        page = self.db.query(BookPage).filter(BookPage.id == sentence.page_id).first()
+        if not page or page.book_id != book_id:
+            raise NotFoundException(message="句子不属于该书籍")
+
+        # 更新句子
+        update_dict = sentence_data.model_dump(exclude_unset=True)
+
+        if update_dict:
+            for key, value in update_dict.items():
+                setattr(sentence, key, value)
+            self.db.commit()
+            self.db.refresh(sentence)
+            logger.info(f"更新句子: sentence_id={sentence_id}, fields={list(update_dict.keys())}")
+
+        return {
+            "id": str(sentence.id),
+            "page_id": str(sentence.page_id),
+            "sentence_order": sentence.sentence_order,
+            "en": sentence.en,
+            "zh": sentence.zh,
+            "audio_url": sentence.audio_url,
+            "created_at": sentence.created_at,
+        }

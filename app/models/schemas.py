@@ -182,6 +182,12 @@ class SentenceCreate(SentenceBase):
     sentence_order: int = Field(..., ge=1)
 
 
+class SentenceUpdate(BaseModel):
+    """Sentence update model."""
+    en: Optional[str] = Field(None, min_length=0)
+    zh: Optional[str] = Field(None, min_length=0)
+
+
 class SentenceResponse(SentenceBase):
     """Sentence response model."""
     id: UUID
