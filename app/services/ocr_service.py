@@ -241,7 +241,7 @@ async def translate_text(text: str) -> str:
             "temperature": 0.1,
         }
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 "https://coding.dashscope.aliyuncs.com/v1/chat/completions",
                 headers=headers,
