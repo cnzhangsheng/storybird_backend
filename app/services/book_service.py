@@ -481,3 +481,49 @@ class BookService:
 
         self.db.commit()
         logger.info(f"句子排序已更新: book_id={book_id}, page={page_number}, order={sentence_ids}")
+
+    def delete_sentence(self, book_id: str, user_id: str, sentence_id: str) -> None:
+        """删除句子。
+
+        Args:
+            book_id: 书籍 ID
+            user_id: 用户 ID
+            sentence_id: 句子 ID
+
+        Raises:
+            NotFoundException: 书籍或句子不存在
+        """
+        # 校验书籍权限
+        book = self.db.query(Book).filter(Book.id == book_id, Book.user_id == user_id).first()
+
+        if not book:
+            logger.warning(f"书籍不存在或无权限: book_id={book_id}, user_id={user_id}")
+            raise NotFoundException(message="书籍未找到")
+
+        # 查找句子
+        sentence = self.db.query(Sentence).filter(Sentence.id == sentence_id).first()
+
+        if not sentence:
+            logger.warning(f"句子不存在: sentence_id={sentence_id}")
+            raise NotFoundException(message="句子未找到")
+
+        # 校验句子所属页面是否属于该书籍
+        page = self.db.query(BookPage).filter(BookPage.id == sentence.page_id).first()
+        if not page or str(page.book_id) != str(book_id):
+            logger.warning(f"句子不属于该书籍: sentence_id={sentence_id}")
+            raise NotFoundException(message="句子不属于该书籍")
+
+        # 删除句子
+        self.db.delete(sentence)
+        self.db.commit()
+
+        # 重新排序剩余句子
+        remaining_sentences = self.db.query(Sentence).filter(
+            Sentence.page_id == page.id
+        ).order_by(Sentence.sentence_order).all()
+
+        for index, s in enumerate(remaining_sentences):
+            s.sentence_order = index + 1
+
+        self.db.commit()
+        logger.info(f"删除句子: sentence_id={sentence_id}, book_id={book_id}")

@@ -146,3 +146,15 @@ async def reorder_sentences(
     """Reorder sentences in a book page."""
     book_service.reorder_sentences(book_id, current_user["id"], page_number, request.sentence_ids)
     return MessageResponse(message="句子排序已更新", success=True)
+
+
+@router.delete("/{book_id}/sentences/{sentence_id}")
+async def delete_sentence(
+    book_id: str,
+    sentence_id: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    book_service: Annotated[BookService, Depends(get_book_service)],
+):
+    """Delete a sentence from a book."""
+    book_service.delete_sentence(book_id, current_user["id"], sentence_id)
+    return MessageResponse(message="句子已删除", success=True)
