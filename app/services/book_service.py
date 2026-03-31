@@ -14,6 +14,7 @@ from app.models.schemas import (
     GenerateBookRequest,
     GenerateBookResponse,
     SentenceUpdate,
+    SentenceCreateRequest,
 )
 from app.models.db_models import Book, BookPage, Sentence
 
@@ -356,6 +357,67 @@ class BookService:
             self.db.commit()
             self.db.refresh(sentence)
             logger.info(f"更新句子: sentence_id={sentence_id}, fields={list(update_dict.keys())}")
+
+        return {
+            "id": str(sentence.id),
+            "page_id": str(sentence.page_id),
+            "sentence_order": sentence.sentence_order,
+            "en": sentence.en,
+            "zh": sentence.zh,
+            "audio_url": sentence.audio_url,
+            "created_at": sentence.created_at,
+        }
+
+    def create_sentence(self, book_id: str, user_id: str, page_number: int, sentence_data: SentenceCreateRequest) -> dict:
+        """创建句子。
+
+        Args:
+            book_id: 书籍 ID
+            user_id: 用户 ID
+            page_number: 页码
+            sentence_data: 句子创建数据
+
+        Returns:
+            创建的句子数据
+
+        Raises:
+            NotFoundException: 书籍或页面不存在
+        """
+        # 校验书籍权限
+        book = self.db.query(Book).filter(Book.id == book_id, Book.user_id == user_id).first()
+
+        if not book:
+            logger.warning(f"书籍不存在或无权限: book_id={book_id}, user_id={user_id}")
+            raise NotFoundException(message="书籍未找到")
+
+        # 获取页面
+        page = self.db.query(BookPage).filter(
+            BookPage.book_id == book_id,
+            BookPage.page_number == page_number,
+        ).first()
+
+        if not page:
+            logger.warning(f"页面不存在: book_id={book_id}, page_number={page_number}")
+            raise NotFoundException(message="页面未找到")
+
+        # 获取当前页面最大句子序号
+        max_order = self.db.query(Sentence).filter(
+            Sentence.page_id == page.id
+        ).count()
+
+        # 创建新句子（序号为当前最大+1）
+        new_order = max_order + 1
+        sentence = Sentence(
+            page_id=page.id,
+            sentence_order=new_order,
+            en=sentence_data.en,
+            zh=sentence_data.zh,
+        )
+        self.db.add(sentence)
+        self.db.commit()
+        self.db.refresh(sentence)
+
+        logger.info(f"创建句子: sentence_id={sentence.id}, page_id={page.id}, order={new_order}")
 
         return {
             "id": str(sentence.id),

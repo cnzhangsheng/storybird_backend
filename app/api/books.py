@@ -16,6 +16,7 @@ from app.models.schemas import (
     MessageResponse,
     SentenceUpdate,
     SentenceResponse,
+    SentenceCreateRequest,
 )
 from app.services import get_book_service
 from app.services.book_service import BookService
@@ -95,6 +96,19 @@ async def get_book_page(
     """Get a specific page of a book with sentences."""
     page = book_service.get_book_page(book_id, current_user["id"], page_number)
     return BookPageDetailResponse(**page)
+
+
+@router.post("/{book_id}/pages/{page_number}/sentences", response_model=SentenceResponse)
+async def create_sentence(
+    book_id: str,
+    page_number: int,
+    sentence_data: SentenceCreateRequest,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    book_service: Annotated[BookService, Depends(get_book_service)],
+):
+    """Create a new sentence in a book page."""
+    sentence = book_service.create_sentence(book_id, current_user["id"], page_number, sentence_data)
+    return SentenceResponse(**sentence)
 
 
 @router.put("/{book_id}/sentences/{sentence_id}", response_model=SentenceResponse)

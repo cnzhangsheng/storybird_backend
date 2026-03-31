@@ -179,13 +179,19 @@ class SentenceBase(BaseModel):
 
 class SentenceCreate(SentenceBase):
     """Sentence creation model."""
-    sentence_order: int = Field(..., ge=1)
+    sentence_order: int = Field(default=1, ge=1)
 
 
 class SentenceUpdate(BaseModel):
     """Sentence update model."""
     en: Optional[str] = Field(None, min_length=0)
     zh: Optional[str] = Field(None, min_length=0)
+
+
+class SentenceCreateRequest(BaseModel):
+    """Request to create a new sentence."""
+    en: str = Field(default="", min_length=0)
+    zh: str = Field(default="", min_length=0)
 
 
 class SentenceResponse(SentenceBase):
