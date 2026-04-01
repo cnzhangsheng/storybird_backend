@@ -1,10 +1,12 @@
 """OCR service using Aliyun Bailian API (Qwen 3.5 Plus)."""
 import base64
+import io
 import re
 from typing import List, Optional
 
 import httpx
 from loguru import logger
+from PIL import Image
 
 from app.core.config import settings
 
@@ -23,11 +25,84 @@ class OcrService:
     阿里百炼 API 文档: https://help.aliyun.com/document_detail/2712195.html
     """
 
+    # 图片压缩配置
+    MAX_WIDTH = 1920  # 最大宽度
+    MAX_HEIGHT = 1920  # 最大高度
+    MAX_FILE_SIZE = 500 * 1024  # 最大文件大小 500KB
+    JPEG_QUALITY = 85  # JPEG 压缩质量
+
     def __init__(self):
         """初始化 OCR 服务。"""
         self.api_key = settings.aliyun_api_key
         self.base_url = "https://coding.dashscope.aliyuncs.com/v1/chat/completions"
         self.model = "qwen3.5-plus"  # 阿里百炼支持的模型名称
+
+    def _compress_image(self, image_data: bytes) -> bytes:
+        """压缩图片，保持宽高比，不裁剪。
+
+        Args:
+            image_data: 原始图片字节数据
+
+        Returns:
+            压缩后的图片字节数据
+        """
+        try:
+            # 打开图片
+            img = Image.open(io.BytesIO(image_data))
+            original_size = len(image_data)
+
+            # 转换为 RGB（处理 PNG 等格式）
+            if img.mode in ("RGBA", "P", "LA"):
+                # 创建白色背景
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                if img.mode == "P":
+                    img = img.convert("RGBA")
+                if img.mode in ("RGBA", "LA"):
+                    background.paste(img, mask=img.split()[-1])  # 使用 alpha 通道作为 mask
+                    img = background
+                else:
+                    img = img.convert("RGB")
+
+            # 计算缩放比例（保持宽高比）
+            width, height = img.size
+            scale = 1.0
+
+            if width > self.MAX_WIDTH or height > self.MAX_HEIGHT:
+                scale = min(self.MAX_WIDTH / width, self.MAX_HEIGHT / height)
+                new_width = int(width * scale)
+                new_height = int(height * scale)
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                logger.debug(f"图片缩放: {width}x{height} -> {new_width}x{new_height}")
+
+            # 压缩为 JPEG
+            output = io.BytesIO()
+            quality = self.JPEG_QUALITY
+
+            # 逐步降低质量直到满足大小限制
+            while quality >= 50:
+                output.seek(0)
+                output.truncate()
+                img.save(output, format="JPEG", quality=quality, optimize=True)
+                compressed_size = output.tell()
+
+                if compressed_size <= self.MAX_FILE_SIZE:
+                    break
+
+                quality -= 10
+
+            output.seek(0)
+            compressed_data = output.read()
+
+            logger.info(
+                f"图片压缩完成: {original_size / 1024:.1f}KB -> {len(compressed_data) / 1024:.1f}KB "
+                f"(质量: {quality}, 缩放: {scale:.2f})"
+            )
+
+            return compressed_data
+
+        except Exception as e:
+            logger.warning(f"图片压缩失败，使用原图: {e}")
+            return image_data
 
     async def recognize_image(self, image_data: bytes) -> List[OcrSentence]:
         """识别图片中的英文文字。
@@ -39,8 +114,11 @@ class OcrService:
             识别的句子列表
         """
         try:
+            # 压缩图片
+            compressed_data = self._compress_image(image_data)
+
             # 将图片转为 base64
-            image_base64 = base64.b64encode(image_data).decode("utf-8")
+            image_base64 = base64.b64encode(compressed_data).decode("utf-8")
             image_url = f"data:image/jpeg;base64,{image_base64}"
 
             # 调用阿里百炼 API
