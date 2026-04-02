@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# StoryBird Backend 推送到 GitHub 脚本
+# StoryCoe Backend 推送到 GitHub 脚本
 # 用法: ./push_to_github.sh "提交信息"
 
 cd "$(dirname "$0")"
@@ -15,7 +15,7 @@ fi
 COMMIT_MSG="$1"
 
 echo "=========================================="
-echo "StoryBird Backend 推送到 GitHub"
+echo "StoryCoe Backend 推送到 GitHub"
 echo "=========================================="
 
 # 检查是否有更改
@@ -46,7 +46,7 @@ if [ $? -eq 0 ]; then
     echo "=========================================="
     echo "✓ 推送成功！"
     echo "=========================================="
-    echo "仓库地址: https://github.com/cnzhangsheng/storybird_backend"
+    echo "仓库地址: https://github.com/cnzhangsheng/storycoe_backend"
 else
     echo ""
     echo "=========================================="
