@@ -73,19 +73,25 @@ class FileStorageService:
         Returns:
             图片相对路径
         """
-        book_dir = self.books_dir / str(book_id)
-        pages_dir = book_dir / "pages"
-        pages_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            book_dir = self.books_dir / str(book_id)
+            pages_dir = book_dir / "pages"
+            pages_dir.mkdir(parents=True, exist_ok=True)
 
-        filename = f"page_{page_number:03d}.{extension}"
-        filepath = pages_dir / filename
+            filename = f"page_{page_number:03d}.{extension}"
+            filepath = pages_dir / filename
 
-        with open(filepath, "wb") as f:
-            f.write(image_data)
+            logger.debug(f"准备保存页面图片: filepath={filepath}, dir_exists={pages_dir.exists()}, data_size={len(image_data)}")
 
-        relative_path = f"books/{book_id}/pages/{filename}"
-        logger.debug(f"保存页面图片: {relative_path}")
-        return relative_path
+            with open(filepath, "wb") as f:
+                f.write(image_data)
+
+            relative_path = f"books/{book_id}/pages/{filename}"
+            logger.debug(f"保存页面图片成功: {relative_path}")
+            return relative_path
+        except Exception as e:
+            logger.error(f"保存页面图片失败: book_id={book_id}, page={page_number}, error={e}")
+            raise
 
     def save_cover_image(
         self,
@@ -103,18 +109,24 @@ class FileStorageService:
         Returns:
             图片相对路径
         """
-        book_dir = self.books_dir / str(book_id)
-        book_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            book_dir = self.books_dir / str(book_id)
+            book_dir.mkdir(parents=True, exist_ok=True)
 
-        filename = f"cover.{extension}"
-        filepath = book_dir / filename
+            filename = f"cover.{extension}"
+            filepath = book_dir / filename
 
-        with open(filepath, "wb") as f:
-            f.write(image_data)
+            logger.debug(f"准备保存封面图片: filepath={filepath}, dir_exists={book_dir.exists()}, data_size={len(image_data)}")
 
-        relative_path = f"books/{book_id}/{filename}"
-        logger.info(f"保存封面图片: {relative_path}")
-        return relative_path
+            with open(filepath, "wb") as f:
+                f.write(image_data)
+
+            relative_path = f"books/{book_id}/{filename}"
+            logger.info(f"保存封面图片成功: {relative_path}")
+            return relative_path
+        except Exception as e:
+            logger.error(f"保存封面图片失败: book_id={book_id}, error={e}")
+            raise
 
     def get_absolute_path(self, relative_path: str) -> Path:
         """获取绝对路径。
