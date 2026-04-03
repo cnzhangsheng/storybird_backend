@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     """
 
     # Application
-    app_name: str = "StoryBird API"
+    app_name: str = "Storycoe API"
     app_version: str = "1.0.0"
     debug: bool = False
 

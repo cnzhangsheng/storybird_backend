@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Backend API for StoryBird - Children's Picture Book Reading App",
+    description="Storycoe（绘本创）Backend API - 自己做绘本，逐句跟读练口语",
     lifespan=lifespan,
 )
 
