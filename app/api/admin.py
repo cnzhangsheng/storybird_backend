@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.response import success_response, error_response
 from app.models.db_models import User, Book, SystemConfig, ReadingProgress
 from app.models.schemas import (
     MessageResponse,
