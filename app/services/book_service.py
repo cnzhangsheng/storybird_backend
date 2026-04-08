@@ -16,7 +16,7 @@ from app.models.schemas import (
     SentenceUpdate,
     SentenceCreateRequest,
 )
-from app.models.db_models import Book, BookPage, Sentence
+from app.models.db_models import Book, BookPage, Sentence, Bookshelf
 from app.services.translation_service import translation_service
 
 
@@ -41,7 +41,7 @@ class BookService:
         page_size: int = 20,
         status: Optional[str] = None,
     ) -> BookListResponse:
-        """获取用户书籍列表。
+        """获取用户书籍列表（包括自己的书和加入书架的书）。
 
         Args:
             user_id: 用户 ID
@@ -52,7 +52,18 @@ class BookService:
         Returns:
             书籍列表响应
         """
-        query = self.db.query(Book).filter(Book.user_id == user_id)
+        # 查询用户书架中的书籍 ID
+        shelf_book_ids = (
+            self.db.query(Bookshelf.book_id)
+            .filter(Bookshelf.user_id == user_id)
+            .all()
+        )
+        shelf_book_ids = [bid[0] for bid in shelf_book_ids]
+
+        # 构建查询：自己的书 + 书架中的书
+        query = self.db.query(Book).filter(
+            (Book.user_id == user_id) | (Book.id.in_(shelf_book_ids))
+        )
 
         if status:
             query = query.filter(Book.status == status)
@@ -607,3 +618,81 @@ class BookService:
 
         self.db.commit()
         logger.info(f"删除句子: sentence_id={sentence_id}, book_id={book_id}")
+
+    # ========================================
+    # 书架相关方法
+    # ========================================
+
+    def add_to_shelf(self, user_id: str, book_id: str) -> None:
+        """将绘本加入书架。
+
+        Args:
+            user_id: 用户 ID
+            book_id: 书籍 ID
+
+        Raises:
+            NotFoundException: 书籍不存在或不公开
+        """
+        # 检查书籍是否存在且公开
+        book = self.db.query(Book).filter(Book.id == book_id).first()
+        if not book:
+            raise NotFoundException(message="书籍未找到")
+
+        # 不能把自己的书加入书架
+        if str(book.user_id) == str(user_id):
+            return  # 静默返回，自己的书已经在列表中了
+
+        # 检查是否已在书架中
+        existing = self.db.query(Bookshelf).filter(
+            Bookshelf.user_id == user_id,
+            Bookshelf.book_id == book_id,
+        ).first()
+
+        if existing:
+            return  # 已在书架中，静默返回
+
+        # 添加到书架
+        shelf_item = Bookshelf(user_id=user_id, book_id=book_id)
+        self.db.add(shelf_item)
+        self.db.commit()
+        logger.info(f"加入书架: user_id={user_id}, book_id={book_id}")
+
+    def remove_from_shelf(self, user_id: str, book_id: str) -> None:
+        """从书架移除绘本。
+
+        Args:
+            user_id: 用户 ID
+            book_id: 书籍 ID
+        """
+        shelf_item = self.db.query(Bookshelf).filter(
+            Bookshelf.user_id == user_id,
+            Bookshelf.book_id == book_id,
+        ).first()
+
+        if shelf_item:
+            self.db.delete(shelf_item)
+            self.db.commit()
+            logger.info(f"移出书架: user_id={user_id}, book_id={book_id}")
+
+    def is_in_shelf(self, user_id: str, book_id: str) -> bool:
+        """检查绘本是否在书架中。
+
+        Args:
+            user_id: 用户 ID
+            book_id: 书籍 ID
+
+        Returns:
+            是否在书架中
+        """
+        # 如果是自己的书，返回 True
+        book = self.db.query(Book).filter(Book.id == book_id).first()
+        if book and str(book.user_id) == str(user_id):
+            return True
+
+        # 检查书架
+        shelf_item = self.db.query(Bookshelf).filter(
+            Bookshelf.user_id == user_id,
+            Bookshelf.book_id == book_id,
+        ).first()
+
+        return shelf_item is not None

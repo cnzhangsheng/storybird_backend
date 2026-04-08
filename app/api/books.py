@@ -176,3 +176,41 @@ async def delete_sentence(
     """Delete a sentence from a book."""
     book_service.delete_sentence(book_id, current_user["id"], sentence_id)
     return MessageResponse(message="句子已删除", success=True)
+
+
+# ========================================
+# 书架相关 API
+# ========================================
+
+
+@router.post("/{book_id}/shelf", response_model=MessageResponse)
+async def add_to_shelf(
+    book_id: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    book_service: Annotated[BookService, Depends(get_book_service)],
+):
+    """将绘本加入书架."""
+    book_service.add_to_shelf(current_user["id"], book_id)
+    return MessageResponse(message="已加入书架", success=True)
+
+
+@router.delete("/{book_id}/shelf", response_model=MessageResponse)
+async def remove_from_shelf(
+    book_id: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    book_service: Annotated[BookService, Depends(get_book_service)],
+):
+    """从书架移除绘本."""
+    book_service.remove_from_shelf(current_user["id"], book_id)
+    return MessageResponse(message="已移出书架", success=True)
+
+
+@router.get("/{book_id}/shelf-status")
+async def check_shelf_status(
+    book_id: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    book_service: Annotated[BookService, Depends(get_book_service)],
+):
+    """检查绘本是否在书架中."""
+    in_shelf = book_service.is_in_shelf(current_user["id"], book_id)
+    return {"in_shelf": in_shelf}

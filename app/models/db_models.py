@@ -2,7 +2,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -133,6 +133,17 @@ class ReadingProgress(Base):
     # 关系
     user: Mapped["User"] = relationship("User", back_populates="reading_progress")
     book: Mapped["Book"] = relationship("Book", back_populates="reading_progress")
+
+
+class Bookshelf(Base):
+    """书架表 - 存储用户加入书架的绘本。"""
+    __tablename__ = "bookshelf"
+    __table_args__ = (UniqueConstraint("user_id", "book_id", name="uq_bookshelf_user_book"),)
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    book_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class SystemConfig(Base):
