@@ -196,10 +196,16 @@ class BookService:
         Raises:
             NotFoundException: 书籍不存在或不属于该用户
         """
-        book = self.db.query(Book).filter(Book.id == book_id, Book.user_id == user_id).first()
+        # 先查询书籍（不限制用户）
+        book = self.db.query(Book).filter(Book.id == book_id).first()
 
         if not book:
-            logger.warning(f"书籍不存在或无权限: book_id={book_id}, user_id={user_id}")
+            logger.warning(f"书籍不存在: book_id={book_id}")
+            raise NotFoundException(message="书籍未找到")
+
+        # 权限检查：用户是所有者，或者书籍是公开的
+        if book.user_id != user_id and book.share_type != "public":
+            logger.warning(f"无权限访问书籍: book_id={book_id}, user_id={user_id}")
             raise NotFoundException(message="书籍未找到")
 
         # 获取书籍的所有页面
@@ -300,10 +306,13 @@ class BookService:
         Raises:
             NotFoundException: 书籍或页面不存在
         """
-        # 校验书籍权限
-        book = self.db.query(Book).filter(Book.id == book_id, Book.user_id == user_id).first()
+        # 校验书籍权限（用户是所有者，或者书籍是公开的）
+        book = self.db.query(Book).filter(Book.id == book_id).first()
 
         if not book:
+            raise NotFoundException(message="书籍未找到")
+
+        if book.user_id != user_id and book.share_type != "public":
             raise NotFoundException(message="书籍未找到")
 
         # 获取页面
