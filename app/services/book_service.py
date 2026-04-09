@@ -10,6 +10,7 @@ from app.models.schemas import (
     BookUpdate,
     BookResponse,
     BookListResponse,
+    ShelfListResponse,
     BookPageDetailResponse,
     GenerateBookRequest,
     GenerateBookResponse,
@@ -40,8 +41,8 @@ class BookService:
         page: int = 1,
         page_size: int = 20,
         status: Optional[str] = None,
-    ) -> BookListResponse:
-        """获取用户书籍列表（包括自己的书和加入书架的书）。
+    ) -> ShelfListResponse:
+        """获取绘本架分类列表。
 
         Args:
             user_id: 用户 ID
@@ -50,53 +51,53 @@ class BookService:
             status: 状态筛选
 
         Returns:
-            书籍列表响应
+            分类书籍响应（我的绘本 + 喜欢的绘本）
         """
-        # 查询用户书架中的书籍 ID
-        shelf_book_ids = (
-            self.db.query(Bookshelf.book_id)
-            .filter(Bookshelf.user_id == user_id)
-            .all()
-        )
-        shelf_book_ids = [bid[0] for bid in shelf_book_ids]
-
-        # 构建查询：自己的书 + 书架中的书
-        query = self.db.query(Book).filter(
-            (Book.user_id == user_id) | (Book.id.in_(shelf_book_ids))
-        )
-
+        # 1. 查询用户自己的所有绘本（不区分 private/public）
+        my_books_query = self.db.query(Book).filter(Book.user_id == user_id)
         if status:
-            query = query.filter(Book.status == status)
+            my_books_query = my_books_query.filter(Book.status == status)
+        my_books = my_books_query.order_by(Book.created_at.desc()).all()
+        total_my = len(my_books)
 
-        # 获取总数
-        total = query.count()
+        # 2. 查询喜欢的绘本（书架中其他人的 public 书籍）
+        liked_books_query = (
+            self.db.query(Book)
+            .join(Bookshelf, Book.id == Bookshelf.book_id)
+            .filter(
+                Bookshelf.user_id == user_id,
+                Book.user_id != user_id,  # 排除自己的书
+                Book.share_type == "public",  # 只有公开书籍
+            )
+        )
+        if status:
+            liked_books_query = liked_books_query.filter(Book.status == status)
+        liked_books = liked_books_query.order_by(Book.created_at.desc()).all()
+        total_liked = len(liked_books)
 
-        # 分页查询
-        books = query.order_by(Book.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        logger.debug(f"获取绘本架: user_id={user_id}, my_books={total_my}, liked_books={total_liked}")
 
-        logger.debug(f"获取书籍列表: user_id={user_id}, page={page}, total={total}")
+        def to_book_response(book: Book) -> BookResponse:
+            return BookResponse(
+                id=book.id,
+                user_id=book.user_id,
+                title=book.title,
+                level=book.level,
+                progress=book.progress,
+                cover_image=book.cover_image,
+                is_new=book.is_new,
+                has_audio=book.has_audio,
+                status=book.status,
+                share_type=book.share_type,
+                created_at=book.created_at,
+                updated_at=book.updated_at,
+            )
 
-        return BookListResponse(
-            books=[
-                BookResponse(
-                    id=book.id,
-                    user_id=book.user_id,
-                    title=book.title,
-                    level=book.level,
-                    progress=book.progress,
-                    cover_image=book.cover_image,
-                    is_new=book.is_new,
-                    has_audio=book.has_audio,
-                    status=book.status,
-                    share_type=book.share_type,
-                    created_at=book.created_at,
-                    updated_at=book.updated_at,
-                )
-                for book in books
-            ],
-            total=total,
-            page=page,
-            page_size=page_size,
+        return ShelfListResponse(
+            my_books=[to_book_response(book) for book in my_books],
+            liked_books=[to_book_response(book) for book in liked_books],
+            total_my=total_my,
+            total_liked=total_liked,
         )
 
     def list_public_books(

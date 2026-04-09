@@ -140,6 +140,14 @@ class BookListResponse(BaseModel):
     page_size: int
 
 
+class ShelfListResponse(BaseModel):
+    """绘本架分类响应."""
+    my_books: list[BookResponse]  # 用户自己的所有绘本
+    liked_books: list[BookResponse]  # 喜欢的他人公开绘本
+    total_my: int
+    total_liked: int
+
+
 # ============================================
 # Book Page Models
 # ============================================

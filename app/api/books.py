@@ -10,6 +10,7 @@ from app.models.schemas import (
     BookResponse,
     BookDetailResponse,
     BookListResponse,
+    ShelfListResponse,
     BookPageDetailResponse,
     GenerateBookRequest,
     GenerateBookResponse,
@@ -35,7 +36,7 @@ async def generate_book(
     return book_service.generate_book(current_user["id"], request)
 
 
-@router.get("", response_model=BookListResponse)
+@router.get("", response_model=ShelfListResponse)
 async def list_books(
     page: int = 1,
     page_size: int = 20,
@@ -43,7 +44,7 @@ async def list_books(
     current_user: Annotated[dict, Depends(get_current_user)] = None,
     book_service: Annotated[BookService, Depends(get_book_service)] = None,
 ):
-    """List user's books with pagination."""
+    """获取绘本架分类列表（我的绘本 + 喜欢的绘本）."""
     return book_service.list_books(
         user_id=current_user["id"],
         page=page,
