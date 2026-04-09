@@ -74,11 +74,14 @@ class FileStorageService:
             图片相对路径
         """
         try:
+            import uuid
             book_dir = self.books_dir / str(book_id)
             pages_dir = book_dir / "pages"
             pages_dir.mkdir(parents=True, exist_ok=True)
 
-            filename = f"page_{page_number:03d}.{extension}"
+            # 使用 UUID 生成唯一文件名，避免缓存问题
+            unique_id = uuid.uuid4().hex[:8]
+            filename = f"page_{page_number:03d}_{unique_id}.{extension}"
             filepath = pages_dir / filename
 
             logger.debug(f"准备保存页面图片: filepath={filepath}, dir_exists={pages_dir.exists()}, data_size={len(image_data)}")
