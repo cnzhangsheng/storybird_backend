@@ -198,9 +198,6 @@ class ReadingService:
             # 新用户首次阅读，增加绘本阅读次数（排行榜统计）
             book.read_count += 1
             logger.debug(f"更新绘本阅读数: book_id={book_id}, read_count={book.read_count}")
-                last_read_at=now,
-            )
-            self.db.add(progress)
 
         # 更新用户统计
         user = self.db.query(User).filter(User.id == user_id).first()

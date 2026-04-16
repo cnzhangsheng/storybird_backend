@@ -36,7 +36,7 @@ def utcnow():
 # 热门绘本榜
 # ========================================
 
-@router.get("/books/hot", response_model=LeaderboardBookListResponse)
+@router.get("/books/hot")
 async def get_hot_books_leaderboard(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
     db: Annotated[Session, Depends(get_db)] = None,
@@ -77,18 +77,22 @@ async def get_hot_books_leaderboard(
 
     logger.info(f"获取热门绘本榜: limit={limit}, results={len(leaderboard)}")
 
-    return LeaderboardBookListResponse(
-        leaderboard_type="hot",
-        books=leaderboard,
-        total=total,
-    )
+    return {
+        "code": 0,
+        "message": "success",
+        "data": {
+            "leaderboard_type": "hot",
+            "books": [LeaderboardBookResponse.model_validate(b).model_dump() for b in leaderboard],
+            "total": total,
+        }
+    }
 
 
 # ========================================
 # 新星绘本榜
 # ========================================
 
-@router.get("/books/new", response_model=LeaderboardBookListResponse)
+@router.get("/books/new")
 async def get_new_books_leaderboard(
     days: Annotated[int, Query(ge=1, le=30)] = 7,
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
@@ -131,18 +135,22 @@ async def get_new_books_leaderboard(
 
     logger.info(f"获取新星绘本榜: days={days}, limit={limit}, results={len(leaderboard)}")
 
-    return LeaderboardBookListResponse(
-        leaderboard_type="new",
-        books=leaderboard,
-        total=total,
-    )
+    return {
+        "code": 0,
+        "message": "success",
+        "data": {
+            "leaderboard_type": "new",
+            "books": [LeaderboardBookResponse.model_validate(b).model_dump() for b in leaderboard],
+            "total": total,
+        }
+    }
 
 
 # ========================================
 # 活跃作者榜
 # ========================================
 
-@router.get("/authors", response_model=LeaderboardAuthorListResponse)
+@router.get("/authors")
 async def get_authors_leaderboard(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
     db: Annotated[Session, Depends(get_db)] = None,
@@ -226,10 +234,14 @@ async def get_authors_leaderboard(
 
     logger.info(f"获取活跃作者榜: limit={limit}, results={len(leaderboard)}")
 
-    return LeaderboardAuthorListResponse(
-        authors=leaderboard,
-        total=total,
-    )
+    return {
+        "code": 0,
+        "message": "success",
+        "data": {
+            "authors": [LeaderboardAuthorResponse.model_validate(a).model_dump() for a in leaderboard],
+            "total": total,
+        }
+    }
 
 
 # ========================================

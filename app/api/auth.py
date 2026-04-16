@@ -1,10 +1,16 @@
 """API routes for authentication."""
+import httpx
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
 
+from app.core.config import settings
 from app.core.exceptions import AuthenticationException
+from app.core.database import SessionLocal
+from app.models.db_models import User
 from app.models.schemas import (
     SendCodeRequest,
     VerifyCodeRequest,
@@ -19,6 +25,19 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 security = HTTPBearer()
 
 
+# 微信登录请求模型
+class WechatLoginRequest(BaseModel):
+    """微信登录请求。"""
+    code: str
+
+
+# 微信登录响应模型
+class WechatLoginResponse(BaseModel):
+    """微信登录响应。"""
+    token: str
+    user: UserResponse
+
+
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
@@ -26,6 +45,119 @@ async def get_current_user(
     """Get current user from JWT token."""
     user_id = auth_service.validate_token(credentials.credentials)
     return auth_service.get_current_user(user_id)
+
+
+@router.post("/wechat-login", response_model=WechatLoginResponse)
+async def wechat_login(
+    request: WechatLoginRequest,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+):
+    """微信小程序登录。
+
+    通过微信 code 获取 openid，创建或获取用户，返回 JWT token。
+    """
+    # 微信小程序 AppID 和 AppSecret（需要配置）
+    appid = getattr(settings, 'wechat_appid', None)
+    secret = getattr(settings, 'wechat_secret', None)
+
+    # 如果没有配置微信 AppID/Secret，使用测试模式
+    if not appid or not secret:
+        # 测试模式：创建测试用户
+        db = SessionLocal()
+        try:
+            # 查找或创建测试用户
+            test_user = db.query(User).filter(User.phone == 'test_user').first()
+            if not test_user:
+                test_user = User(
+                    id=uuid4(),
+                    phone='test_user',
+                    name='测试用户',
+                    level=1,
+                    books_read=0,
+                    stars=0,
+                    streak=0,
+                )
+                db.add(test_user)
+                db.commit()
+                db.refresh(test_user)
+
+            # 生成 JWT token
+            token = auth_service.create_access_token(str(test_user.id))
+
+            return WechatLoginResponse(
+                token=token,
+                user=UserResponse(
+                    id=test_user.id,
+                    name=test_user.name,
+                    avatar=test_user.avatar,
+                    level=test_user.level,
+                    books_read=test_user.books_read,
+                    stars=test_user.stars,
+                    streak=test_user.streak,
+                    created_at=test_user.created_at,
+                    updated_at=test_user.updated_at,
+                )
+            )
+        finally:
+            db.close()
+
+    # 正常模式：调用微信 API
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            'https://api.weixin.qq.com/sns/jscode2session',
+            params={
+                'appid': appid,
+                'secret': secret,
+                'js_code': request.code,
+                'grant_type': 'authorization_code',
+            }
+        )
+        data = resp.json()
+
+        if 'errcode' in data and data['errcode'] != 0:
+            raise AuthenticationException(
+                message=f"微信登录失败: {data.get('errmsg', '未知错误')}"
+            )
+
+        openid = data.get('openid')
+
+        # 查找或创建用户
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.phone == openid).first()
+            if not user:
+                user = User(
+                    id=uuid4(),
+                    phone=openid,
+                    name='微信用户',
+                    level=1,
+                    books_read=0,
+                    stars=0,
+                    streak=0,
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+
+            # 生成 JWT token
+            token = auth_service.create_token(str(user.id))
+
+            return WechatLoginResponse(
+                token=token,
+                user=UserResponse(
+                    id=user.id,
+                    name=user.name,
+                    avatar=user.avatar,
+                    level=user.level,
+                    books_read=user.books_read,
+                    stars=user.stars,
+                    streak=user.streak,
+                    created_at=user.created_at,
+                    updated_at=user.updated_at,
+                )
+            )
+        finally:
+            db.close()
 
 
 @router.post("/send-code", response_model=MessageResponse)
