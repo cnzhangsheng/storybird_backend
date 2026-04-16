@@ -232,9 +232,12 @@ class BookService:
         # 获取书籍的所有页面
         pages = self.db.query(BookPage).filter(BookPage.book_id == book_id).order_by(BookPage.page_number).all()
 
-        # 构建页面列表（不包含句子，句子通过单独API获取）
+        # 构建页面列表（包含句子）
         pages_data = []
         for page in pages:
+            # 获取该页面的所有句子
+            sentences = self.db.query(Sentence).filter(Sentence.page_id == page.id).order_by(Sentence.sentence_order).all()
+
             pages_data.append({
                 "id": str(page.id),
                 "book_id": str(page.book_id),
@@ -242,7 +245,18 @@ class BookService:
                 "image_url": page.image_url,
                 "status": page.status,
                 "created_at": page.created_at,
-                "sentences": [],  # 句子通过 get_book_page 获取
+                "sentences": [
+                    {
+                        "id": str(s.id),
+                        "page_id": str(s.page_id),
+                        "sentence_order": s.sentence_order,
+                        "en": s.en,
+                        "zh": s.zh,
+                        "audio_url": s.audio_url,
+                        "created_at": s.created_at,
+                    }
+                    for s in sentences
+                ],
             })
 
         return {
