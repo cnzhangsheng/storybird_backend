@@ -60,8 +60,8 @@ async def process_generate_ocr_task(book_id: int, image_urls: list[str]):
     """
     import httpx
     from app.core.database import SessionLocal
-    from app.models.db_models import Book, BookPage
-    from app.services.ocr_service import ocr_service
+    from app.models.db_models import Book, BookPage, Sentence
+    from app.services.ocr_service import ocr_service, OcrSentence
 
     db = SessionLocal()
     try:
@@ -79,14 +79,18 @@ async def process_generate_ocr_task(book_id: int, image_urls: list[str]):
         page_data_list = []
         pages = db.query(BookPage).filter(BookPage.book_id == book_id).order_by(BookPage.page_number).all()
 
+        if len(pages) != len(image_urls):
+            logger.warning(f"[GenerateOCR] 页面数不匹配: pages={len(pages)}, urls={len(image_urls)}")
+
         async with httpx.AsyncClient(timeout=60.0) as client:
-            for page, url in zip(pages, image_urls):
+            for i, url in enumerate(image_urls):
                 try:
                     # 处理相对 URL
                     if url.startswith("/static/"):
                         # 本地文件，直接读取
                         from app.core.config import settings
-                        file_path = url.replace("/static/", settings.upload_dir + "/")
+                        import os
+                        file_path = os.path.join(settings.upload_dir, url.replace("/static/", ""))
                         with open(file_path, "rb") as f:
                             image_data = f.read()
                     else:
@@ -94,10 +98,13 @@ async def process_generate_ocr_task(book_id: int, image_urls: list[str]):
                         resp = await client.get(url)
                         image_data = resp.content
 
-                    page_data_list.append((page.id, image_data))
-                    logger.debug(f"[GenerateOCR] 下载图片成功: page_id={page.id}, size={len(image_data)}")
+                    if i < len(pages):
+                        page_data_list.append((pages[i].id, image_data))
+                        logger.info(f"[GenerateOCR] 下载图片成功: page_id={pages[i].id}, size={len(image_data)}")
+                    else:
+                        logger.warning(f"[GenerateOCR] 跳过超出范围的图片: i={i}")
                 except Exception as e:
-                    logger.warning(f"[GenerateOCR] 下载图片失败: url={url}, error={e}")
+                    logger.error(f"[GenerateOCR] 下载图片失败: url={url}, error={e}")
 
         if not page_data_list:
             book.status = "error"
@@ -106,14 +113,26 @@ async def process_generate_ocr_task(book_id: int, image_urls: list[str]):
             return
 
         # 并行 OCR 识别
+        logger.info(f"[GenerateOCR] 开始 OCR 识别: {len(page_data_list)} 张图片")
         ocr_tasks = [
             ocr_service.recognize_image(image_data)
             for _, image_data in page_data_list
         ]
-        ocr_results = await asyncio.gather(*ocr_tasks)
+        ocr_results: list[list[OcrSentence]] = await asyncio.gather(*ocr_tasks, return_exceptions=True)
 
         # 保存句子并更新页面状态
-        for page_id, sentences in zip([p[0] for p in page_data_list], ocr_results):
+        total_sentences = 0
+        for idx, (page_id, _) in enumerate(page_data_list):
+            result = ocr_results[idx]
+
+            # 处理 OCR 异常
+            if isinstance(result, Exception):
+                logger.error(f"[GenerateOCR] OCR 失败: page_id={page_id}, error={result}")
+                continue
+
+            sentences = result
+            logger.info(f"[GenerateOCR] OCR 结果: page_id={page_id}, sentences={len(sentences)}")
+
             # 更新页面状态
             page = db.query(BookPage).filter(BookPage.id == page_id).first()
             if page:
@@ -121,15 +140,19 @@ async def process_generate_ocr_task(book_id: int, image_urls: list[str]):
 
             # 保存句子
             for j, sentence in enumerate(sentences):
+                if not sentence.en.strip():
+                    continue
                 sentence_record = Sentence(
                     page_id=page_id,
                     sentence_order=j + 1,
-                    en=sentence.en,
-                    zh=sentence.zh,
+                    en=sentence.en.strip(),
+                    zh=sentence.zh.strip() if sentence.zh else "",
                 )
                 db.add(sentence_record)
+                total_sentences += 1
 
         db.commit()
+        logger.info(f"[GenerateOCR] 保存句子: {total_sentences} 个")
 
         book.status = "completed"
         book.has_audio = True

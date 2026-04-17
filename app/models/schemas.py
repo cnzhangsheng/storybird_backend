@@ -128,7 +128,7 @@ class BookResponse(BookBase):
 
 class BookDetailResponse(BookResponse):
     """Book detail response model with pages."""
-    pages: list["BookPageResponse"] = []
+    pages: list["BookPageDetailResponse"] = []
 
 
 class BookListResponse(BaseModel):

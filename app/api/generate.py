@@ -110,15 +110,25 @@ async def process_ocr_task(book_id: int, page_data_list: List[tuple]):
         db.commit()
 
         # 并行 OCR 识别所有图片
+        logger.info(f"[OCR] 开始识别: {len(page_data_list)} 张图片")
         ocr_tasks = [
             ocr_service.recognize_image(image_data)
             for _, image_data in page_data_list
         ]
-        ocr_results: List[List[OcrSentence]] = await asyncio.gather(*ocr_tasks)
+        ocr_results: List[List[OcrSentence]] = await asyncio.gather(*ocr_tasks, return_exceptions=True)
 
         # 保存所有句子并更新页面状态
+        total_sentences = 0
         for idx, (page_id, _) in enumerate(page_data_list):
-            sentences = ocr_results[idx]
+            result = ocr_results[idx]
+
+            # 处理 OCR 异常
+            if isinstance(result, Exception):
+                logger.error(f"[OCR] OCR 失败: page_id={page_id}, error={result}")
+                continue
+
+            sentences = result
+            logger.info(f"[OCR] OCR 结果: page_id={page_id}, sentences={len(sentences)}")
 
             # 更新页面状态
             page = db.query(BookPage).filter(BookPage.id == page_id).first()
@@ -127,15 +137,19 @@ async def process_ocr_task(book_id: int, page_data_list: List[tuple]):
 
             # 保存句子
             for j, sentence in enumerate(sentences):
+                if not sentence.en.strip():
+                    continue
                 sentence_record = Sentence(
                     page_id=page_id,
                     sentence_order=j + 1,
-                    en=sentence.en,
-                    zh=sentence.zh,
+                    en=sentence.en.strip(),
+                    zh=sentence.zh.strip() if sentence.zh else "",
                 )
                 db.add(sentence_record)
+                total_sentences += 1
 
         db.commit()
+        logger.info(f"[OCR] 保存句子: {total_sentences} 个")
 
         # 更新书籍状态为完成
         book.status = "completed"
