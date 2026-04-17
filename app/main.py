@@ -10,7 +10,6 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.exceptions import BusinessException
 from app.core.logging import setup_logging, get_logger
-from app.core.database import init_db
 from app.api import auth_router, books_router, users_router, reading_router, ocr_router, generate_router
 from app.api.admin import router as admin_router
 from app.api.gamification import router as gamification_router
@@ -32,10 +31,6 @@ async def lifespan(app: FastAPI):
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Upload directory: {upload_dir.absolute()}")
-
-    # 初始化数据库表
-    logger.info("Initializing database...")
-    init_db()
 
     # 初始化游戏化成就数据
     from app.core.database import SessionLocal

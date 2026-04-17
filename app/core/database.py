@@ -52,9 +52,3 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """获取异步数据库会话（依赖注入）。"""
     async with AsyncSessionLocal() as session:
         yield session
-
-
-def init_db():
-    """初始化数据库（创建所有表）。"""
-    from app.models import db_models  # 导入模型以注册表
-    Base.metadata.create_all(bind=engine)
