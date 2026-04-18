@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.db_models import User, Book, SystemConfig, ReadingProgress
+from app.models.db_models import User, Book, SystemConfig, ReadingProgress, UserRole
 from app.models.schemas import (
     MessageResponse,
     AdminLoginRequest,
@@ -22,6 +22,7 @@ from app.models.schemas import (
     AdminBookDetailResponse,
     AdminStatsOverviewResponse,
     AdminBanRequest,
+    AdminUpdateRoleRequest,
     SystemConfigUpdate,
     SystemConfigResponse,
 )
@@ -137,7 +138,23 @@ async def list_users(
         page=page,
         page_size=page_size,
         users=[
-            AdminUserResponse.from_orm(user) for user in users
+            AdminUserResponse(
+                id=user.id,
+                name=user.name,
+                phone=user.phone,
+                avatar=user.avatar,
+                role=user.role,
+                role_name=UserRole.get_name(user.role),
+                level=user.level,
+                books_read=user.books_read,
+                stars=user.stars,
+                streak=user.streak,
+                is_active=user.is_active,
+                is_banned=user.is_banned,
+                banned_reason=user.banned_reason,
+                created_at=user.created_at,
+                updated_at=user.updated_at,
+            ) for user in users
         ],
     )
 
@@ -153,7 +170,41 @@ async def get_user_detail(
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
-    return AdminUserResponse.from_orm(user)
+    return AdminUserResponse(
+        id=user.id,
+        name=user.name,
+        phone=user.phone,
+        avatar=user.avatar,
+        role=user.role,
+        role_name=UserRole.get_name(user.role),
+        level=user.level,
+        books_read=user.books_read,
+        stars=user.stars,
+        streak=user.streak,
+        is_active=user.is_active,
+        is_banned=user.is_banned,
+        banned_reason=user.banned_reason,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+    )
+
+
+@router.put("/users/{user_id}/role", response_model=MessageResponse)
+async def update_user_role(
+    user_id: int,
+    request: AdminUpdateRoleRequest,
+    admin: Annotated[dict, Depends(get_current_admin)] = None,
+    db: Session = Depends(get_db),
+):
+    """更新用户角色"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    user.role = request.role
+    db.commit()
+
+    return MessageResponse(message=f"用户 {user.name} 角色已更新为: {UserRole.get_name(request.role)}")
 
 
 @router.put("/users/{user_id}/ban", response_model=MessageResponse)

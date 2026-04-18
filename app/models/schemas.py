@@ -29,7 +29,9 @@ class UserUpdate(BaseModel):
 class UserResponse(UserBase):
     """User response model."""
     id: int
-    level: int = 1
+    role: int = 0  # 用户角色
+    role_name: str = "普通用户"  # 角色名称
+    level: int = 1  # 阅读等级
     books_read: int = 0
     stars: int = 0
     streak: int = 0
@@ -334,7 +336,9 @@ class AdminUserResponse(BaseModel):
     name: str
     phone: Optional[str] = None
     avatar: Optional[str] = None
-    level: int = 1
+    role: int = 0  # 用户角色
+    role_name: str = "普通用户"  # 角色名称
+    level: int = 1  # 阅读等级
     books_read: int = 0
     stars: int = 0
     streak: int = 0
@@ -408,6 +412,11 @@ class AdminStatsOverviewResponse(BaseModel):
 class AdminBanRequest(BaseModel):
     """Admin ban user request."""
     reason: str = Field(..., min_length=1, max_length=500)
+
+
+class AdminUpdateRoleRequest(BaseModel):
+    """Admin update user role request."""
+    role: int = Field(..., ge=0, le=10, description="用户角色: 0=普通用户, 1=高级用户, 10=管理员")
 
 
 class SystemConfigResponse(BaseModel):

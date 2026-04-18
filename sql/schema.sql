@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
     wechat_open_id VARCHAR(100) UNIQUE,
     name VARCHAR(100) NOT NULL DEFAULT '小读者',
     avatar VARCHAR(500),
-    level INTEGER NOT NULL DEFAULT 1,
+    role INTEGER NOT NULL DEFAULT 0,  -- 用户角色: 0=普通用户, 1=高级用户, 10=管理员
+    level INTEGER NOT NULL DEFAULT 1,  -- 阅读等级（游戏化系统）
     books_read INTEGER NOT NULL DEFAULT 0,
     books_created INTEGER NOT NULL DEFAULT 0,
     stars INTEGER NOT NULL DEFAULT 0,

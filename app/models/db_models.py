@@ -8,6 +8,29 @@ from app.core.database import Base
 from app.utils.snowflake import snowflake_id
 
 
+# 用户角色枚举
+class UserRole:
+    """用户角色常量."""
+    NORMAL = 0      # 普通用户
+    ADVANCED = 1    # 高级用户
+    ADMIN = 10      # 管理员
+
+    @staticmethod
+    def get_name(role: int) -> str:
+        """获取角色名称."""
+        role_names = {
+            UserRole.NORMAL: "普通用户",
+            UserRole.ADVANCED: "高级用户",
+            UserRole.ADMIN: "管理员"
+        }
+        return role_names.get(role, "普通用户")
+
+    @staticmethod
+    def is_admin(role: int) -> bool:
+        """判断是否为管理员."""
+        return role >= UserRole.ADMIN
+
+
 class User(Base):
     """用户表。"""
     __tablename__ = "users"
@@ -17,7 +40,8 @@ class User(Base):
     wechat_open_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(100), default="小读者")
     avatar: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    level: Mapped[int] = mapped_column(Integer, default=1)
+    role: Mapped[int] = mapped_column(Integer, default=UserRole.NORMAL)  # 用户角色
+    level: Mapped[int] = mapped_column(Integer, default=1)  # 阅读等级（游戏化系统）
     books_read: Mapped[int] = mapped_column(Integer, default=0)
     books_created: Mapped[int] = mapped_column(Integer, default=0)
     stars: Mapped[int] = mapped_column(Integer, default=0)
