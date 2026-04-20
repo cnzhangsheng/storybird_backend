@@ -408,9 +408,16 @@ class BookService:
             "created_at": sentence.created_at,
         }
 
-        # 如果英文有变化，更新状态为 pending（需要重新翻译和生成 TTS）
+        # 如果英文有变化，或者没有中文翻译，更新状态为 pending（需要重新翻译和生成 TTS）
+        need_regenerate = False
         if new_en is not None and new_en != old_en:
             sentence.status = "pending"
+            need_regenerate = True
+        elif not sentence.zh and sentence.en:  # 没有中文翻译但有英文
+            sentence.status = "pending"
+            need_regenerate = True
+
+        if need_regenerate:
             self.db.commit()
             result["status"] = "pending"
 
