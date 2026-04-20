@@ -217,7 +217,10 @@ class SentenceResponse(SentenceBase):
     id: int
     page_id: int
     sentence_order: int
-    audio_url: Optional[str] = None
+    audio_us_normal: Optional[str] = None
+    audio_us_slow: Optional[str] = None
+    audio_gb_normal: Optional[str] = None
+    audio_gb_slow: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -374,7 +377,10 @@ class AdminSentenceResponse(BaseModel):
     sentence_order: int
     en: str
     zh: str
-    audio_url: Optional[str] = None
+    audio_us_normal: Optional[str] = None
+    audio_us_slow: Optional[str] = None
+    audio_gb_normal: Optional[str] = None
+    audio_gb_slow: Optional[str] = None
 
 
 class AdminBookPageResponse(BaseModel):

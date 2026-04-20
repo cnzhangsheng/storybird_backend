@@ -94,7 +94,10 @@ CREATE TABLE IF NOT EXISTS sentences (
     sentence_order INTEGER NOT NULL,
     en TEXT NOT NULL DEFAULT '',
     zh TEXT NOT NULL DEFAULT '',
-    audio_url VARCHAR(500),
+    audio_us_normal VARCHAR(500),  -- 美式英语正常语速音频
+    audio_us_slow VARCHAR(500),    -- 美式英语慢速音频
+    audio_gb_normal VARCHAR(500),  -- 英式英语正常语速音频
+    audio_gb_slow VARCHAR(500),    -- 英式英语慢速音频
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 

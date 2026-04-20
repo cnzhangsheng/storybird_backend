@@ -174,7 +174,11 @@ class Sentence(Base):
     sentence_order: Mapped[int] = mapped_column(Integer)
     en: Mapped[str] = mapped_column(Text)
     zh: Mapped[str] = mapped_column(Text)
-    audio_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # TTS 音频字段（美式/英式，正常/慢速）
+    audio_us_normal: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    audio_us_slow: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    audio_gb_normal: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    audio_gb_slow: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # 关系

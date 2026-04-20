@@ -203,7 +203,10 @@ class BookService:
                         "sentence_order": s.sentence_order,
                         "en": s.en,
                         "zh": s.zh,
-                        "audio_url": s.audio_url,
+                        "audio_us_normal": s.audio_us_normal,
+                        "audio_us_slow": s.audio_us_slow,
+                        "audio_gb_normal": s.audio_gb_normal,
+                        "audio_gb_slow": s.audio_gb_slow,
                         "created_at": s.created_at,
                     }
                     for s in sentences
@@ -392,7 +395,10 @@ class BookService:
             "sentence_order": sentence.sentence_order,
             "en": sentence.en,
             "zh": sentence.zh,
-            "audio_url": sentence.audio_url,
+            "audio_us_normal": sentence.audio_us_normal,
+            "audio_us_slow": sentence.audio_us_slow,
+            "audio_gb_normal": sentence.audio_gb_normal,
+            "audio_gb_slow": sentence.audio_gb_slow,
             "created_at": sentence.created_at,
             "translating": False,
         }
@@ -438,7 +444,10 @@ class BookService:
             "sentence_order": sentence.sentence_order,
             "en": sentence.en,
             "zh": sentence.zh,
-            "audio_url": sentence.audio_url,
+            "audio_us_normal": sentence.audio_us_normal,
+            "audio_us_slow": sentence.audio_us_slow,
+            "audio_gb_normal": sentence.audio_gb_normal,
+            "audio_gb_slow": sentence.audio_gb_slow,
             "created_at": sentence.created_at,
         }
 
